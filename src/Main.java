@@ -37,7 +37,7 @@ public class Main extends Application {
     public static final int BLOCK_COUNT_HORIZONTAL = 15;
     public static final int BLOCK_COUNT_VERTICAL = 10;
     public static final int BLOCK_SIZE = 30;
-    public static final int UI_OFFSET = 100;
+    public static final int UI_OFFSET = 90;
     public static final int WIDTH = BLOCK_COUNT_HORIZONTAL * BLOCK_SIZE;
     public static final int HEIGHT = BLOCK_COUNT_VERTICAL * BLOCK_SIZE + UI_OFFSET;
     public static final int COLOR_COUNT = 4;
@@ -94,7 +94,7 @@ public class Main extends Application {
         });
         undo.setPrefWidth(60);
         undo.setPrefHeight(30);
-        undo.relocate(WIDTH/2-undo.getPrefWidth()/2, UI_OFFSET/2-undo.getPrefHeight()/2);
+        undo.relocate(WIDTH-undo.getPrefWidth()*1.5, undo.getPrefHeight());
         root.getChildren().add(undo);
         
         primaryStage.show();
