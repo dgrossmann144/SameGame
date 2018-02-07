@@ -2,12 +2,18 @@ import java.awt.Point;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashSet;
+
+import javax.sound.midi.Synthesizer;
+
 import javafx.application.Application;
+import javafx.event.ActionEvent;
+import javafx.event.Event;
 import javafx.event.EventHandler;
 import javafx.scene.Group;
 import javafx.scene.Scene;
 import javafx.scene.canvas.Canvas;
 import javafx.scene.canvas.GraphicsContext;
+import javafx.scene.control.Button;
 import javafx.scene.input.MouseEvent;
 import javafx.scene.paint.Color;
 import javafx.stage.Stage;
@@ -28,12 +34,17 @@ public class Main extends Application {
      * Display number of blocks of color left
      */
     
-    public static final int WIDTH = 15;
-    public static final int HEIGHT = 10;
+    public static final int BLOCK_COUNT_HORIZONTAL = 15;
+    public static final int BLOCK_COUNT_VERTICAL = 10;
     public static final int BLOCK_SIZE = 30;
     public static final int UI_OFFSET = 100;
-    public static final int COLORS = 4;
+    public static final int WIDTH = BLOCK_COUNT_HORIZONTAL * BLOCK_SIZE;
+    public static final int HEIGHT = BLOCK_COUNT_VERTICAL * BLOCK_SIZE + UI_OFFSET;
+    public static final int COLOR_COUNT = 4;
+    public static final Color[] COLOR_VALUES = {Color.RED, Color.BLUE, Color.GREEN, Color.YELLOW};
     public static final int GROUP_SIZE = 2;
+    public static int[][] board;
+    public static ArrayList<int[][]> boardHistory;
     
     public static void main(String[] args) {
         Application.launch(args);
@@ -41,60 +52,82 @@ public class Main extends Application {
 
     public void start(Stage primaryStage) {
         primaryStage.setTitle("Same Game");
-        int[][] board = makeBoard(WIDTH, HEIGHT, COLORS);
-        printBoard(board);
+        board = makeBoard(BLOCK_COUNT_HORIZONTAL, BLOCK_COUNT_VERTICAL, COLOR_COUNT);
+        boardHistory = new ArrayList<int[][]>();
+        boardHistory.add(copy2D(board));
+        printBoard();
         
         Group root = new Group();
         Scene scene = new Scene(root);
         primaryStage.setScene(scene);
         
-        Canvas canvas = new Canvas(WIDTH * BLOCK_SIZE, HEIGHT * BLOCK_SIZE + UI_OFFSET);
+        Canvas canvas = new Canvas(WIDTH, HEIGHT);
         root.getChildren().add(canvas);
         
         GraphicsContext gc = canvas.getGraphicsContext2D();
-        drawBoard(board, gc);
+        draw(gc);
         
         scene.setOnMouseClicked(new EventHandler<MouseEvent>() {
             public void handle(MouseEvent mouseClick) {
                 int xTile = (int) (mouseClick.getX() / BLOCK_SIZE);
                 int yTile = (int) Math.floor(((mouseClick.getY() - UI_OFFSET) / BLOCK_SIZE));
-                if (xTile >= 0 && xTile < WIDTH && yTile >= 0 && yTile < HEIGHT) {
-                    removeTiles(board, yTile, xTile);
-                    drawBoard(board, gc);
-                    printBoard(board);
+                if (xTile >= 0 && xTile < BLOCK_COUNT_HORIZONTAL && yTile >= 0 && yTile < BLOCK_COUNT_VERTICAL) {
+                    removeTiles(yTile, xTile);
+                    draw(gc);
+                    printBoard();
                 } else {
                     System.out.println("Invalid click location");
                 }
             }
         });
         
+        Button undo = new Button("Undo");
+        undo.setOnAction(new EventHandler<ActionEvent>() {
+            public void handle(ActionEvent event) {
+                if (boardHistory.size() > 1) {
+                    board = copy2D(boardHistory.get(boardHistory.size() - 2));
+                    boardHistory.remove(boardHistory.size() - 1);
+                    draw(gc);
+                    printBoard();
+                }
+            }
+        });
+        undo.setPrefWidth(60);
+        undo.setPrefHeight(30);
+        undo.relocate(WIDTH/2-undo.getPrefWidth()/2, UI_OFFSET/2-undo.getPrefHeight()/2);
+        root.getChildren().add(undo);
+        
         primaryStage.show();
     }
     
-    public static void drawBoard(int[][] board, GraphicsContext gc) {
+    public static void draw(GraphicsContext gc) {
+        drawBoard(gc);
+        int[] colorsAmounts = countColors();
+    }
+    
+    public static void drawBoard(GraphicsContext gc) {
         gc.setFill(Color.WHITE);
-        gc.fillRect(0, UI_OFFSET, WIDTH * BLOCK_SIZE, HEIGHT * BLOCK_SIZE);
-        Color[] colors = {Color.RED, Color.BLUE, Color.GREEN, Color.YELLOW};
+        gc.fillRect(0, UI_OFFSET, BLOCK_COUNT_HORIZONTAL * BLOCK_SIZE, BLOCK_COUNT_VERTICAL * BLOCK_SIZE);
         for(int x = 0; x < board.length; x++) {
             for(int y = 0; y < board[x].length; y++) {
                 if (board[x][y] != 0) {
-                    gc.setFill(colors[board[x][y]-1]);
+                    gc.setFill(COLOR_VALUES[board[x][y]-1]);
                     gc.fillRect(y * BLOCK_SIZE, x * BLOCK_SIZE + UI_OFFSET, BLOCK_SIZE, BLOCK_SIZE);
                 }
             }
         }
     }
     
-    public static void removeTiles(int[][] board, int x, int y) {
+    public static void removeTiles(int x, int y) {
         if (x >= 0 && x < board.length && y >= 0 && y < board[0].length) {
-            HashSet<Point> removeTiles = getConnected(board, x, y, new HashSet<Point>()); 
+            HashSet<Point> removeTiles = getConnected(x, y, new HashSet<Point>()); 
             if(removeTiles.size() >= GROUP_SIZE) {
                 for (Point tile : removeTiles) {
                     board[tile.x][tile.y] = 0;
                 }
             }
-            adjustBoard(board);
-            int endResult = checkEnd(board);
+            adjustBoard();
+            int endResult = checkEnd();
             if (endResult != 2) {
                 System.out.println("End of game: " + endResult);
             }
@@ -103,7 +136,7 @@ public class Main extends Application {
         }
     }
     
-    public static void adjustBoard(int[][] board) {
+    public static void adjustBoard() {
         boolean colHasZero = false;
         int[] column = new int[board.length];
         
@@ -146,47 +179,48 @@ public class Main extends Application {
                 }
             }
         }
+        boardHistory.add(copy2D(board));
     }
     
-    public static int checkEnd(int[][] board) {
-        if (isBoardEmpty(board)) {
+    public static int checkEnd() {
+        if (isEmpty()) {
             return 0; //Board is empty
-        } else if (!boardHasMoves(board)) {
+        } else if (!hasMoves()) {
             return 1; //Board has no more moves
         } else {
             return 2; //Player can still make a move
         }
     }
     
-    public static HashSet<Point> getConnected(int[][] board, int x, int y, HashSet<Point> result) {
+    public static HashSet<Point> getConnected(int x, int y, HashSet<Point> result) {
         int tileColor = board[x][y];
         if (x > 0 && board[x-1][y] == tileColor) {
             if (result.add(new Point(x-1, y))) {
-                result.addAll(getConnected(board, x-1, y, result));
+                result.addAll(getConnected(x-1, y, result));
             }
         }
         if(x < board.length - 1 && board[x+1][y] == tileColor) {
             if (result.add(new Point(x+1, y))) {
-                result.addAll(getConnected(board, x+1, y, result));
+                result.addAll(getConnected(x+1, y, result));
             }
         }
         if(y > 0 && board[x][y-1] == tileColor) {
             if (result.add(new Point(x, y-1))) {
-                result.addAll(getConnected(board, x, y-1, result));
+                result.addAll(getConnected(x, y-1, result));
             }
         }
         if(y < board[x].length - 1 && board[x][y+1] == tileColor) {
             if (result.add(new Point(x, y+1))) {
-                result.addAll(getConnected(board, x, y+1, result));
+                result.addAll(getConnected(x, y+1, result));
             }
         }
         return result;
     }
     
-    public static boolean boardHasMoves(int[][] board) {
+    public static boolean hasMoves() {
         for (int x = 0; x < board.length; x++) {
             for (int y = 0; y < board[x].length; y++) {
-                if (board[x][y] != 0 && getConnected(board, x, y, new HashSet<Point>()).size() >= GROUP_SIZE) {
+                if (board[x][y] != 0 && getConnected(x, y, new HashSet<Point>()).size() >= GROUP_SIZE) {
                     return true;
                 }
             }
@@ -194,7 +228,7 @@ public class Main extends Application {
         return false;
     }
     
-    public static boolean isBoardEmpty(int[][] board) {
+    public static boolean isEmpty() {
         for (int x = 0; x < board.length; x++) {
             for (int y = 0; y < board[x].length; y++) {
                 if (board[x][y] != 0) {
@@ -203,6 +237,18 @@ public class Main extends Application {
             }
         }
         return true;
+    }
+    
+    public static int[] countColors() {
+        int[] result = new int[COLOR_COUNT];
+        for (int x = 0; x < board.length; x++) {
+            for (int y = 0; y < board[x].length; y++) {
+                if (board[x][y]-1 >= 0 && board[x][y]-1 < COLOR_COUNT) {
+                    result[board[x][y]-1]++;
+                }
+            }
+        }
+        return result;
     }
     
     public static int[][] makeBoard(int width, int height, int colors) {
@@ -235,7 +281,7 @@ public class Main extends Application {
         return board;
     }
     
-    public static void printBoard(int[][] board) {
+    public static void printBoard() {
         System.out.print("  ");
         for (int x = 0; x < board[0].length; x++) {
             System.out.printf("%3d", x);
@@ -254,5 +300,15 @@ public class Main extends Application {
             System.out.println();
         }
         System.out.println();
+    }
+    
+    public static int[][] copy2D(int[][] copyOf) {
+        int[][] result = new int[copyOf.length][copyOf[0].length];
+        for (int x = 0; x < copyOf.length; x++) {
+            for (int y = 0; y < copyOf[x].length; y++) {
+                result[x][y] = copyOf[x][y];
+            }
+        }
+        return result;
     }
 }
