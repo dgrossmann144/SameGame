@@ -16,6 +16,8 @@ import javafx.scene.canvas.GraphicsContext;
 import javafx.scene.control.Button;
 import javafx.scene.input.MouseEvent;
 import javafx.scene.paint.Color;
+import javafx.scene.text.Font;
+import javafx.scene.text.TextAlignment;
 import javafx.stage.Stage;
 
 public class Main extends Application {
@@ -25,9 +27,9 @@ public class Main extends Application {
      * When a column is empty, shift everything to the left
      * 
      * Options: (default)
-     * Minimum block group that is clearable (3)
+     * Minimum block group that is clearable (2)
      * Number of unique block colors (4)
-     * Size of board (10*20)
+     * Size of board (10*15)
      * 
      * Features:
      * Undo button
@@ -37,9 +39,10 @@ public class Main extends Application {
     public static final int BLOCK_COUNT_HORIZONTAL = 15;
     public static final int BLOCK_COUNT_VERTICAL = 10;
     public static final int BLOCK_SIZE = 30;
-    public static final int UI_OFFSET = 90;
+    public static final int UI_OFFSET_TOP = 90;
+    public static final int UI_OFFSET_BOTTOM = 35;
     public static final int WIDTH = BLOCK_COUNT_HORIZONTAL * BLOCK_SIZE;
-    public static final int HEIGHT = BLOCK_COUNT_VERTICAL * BLOCK_SIZE + UI_OFFSET;
+    public static final int HEIGHT = BLOCK_COUNT_VERTICAL * BLOCK_SIZE + UI_OFFSET_TOP + UI_OFFSET_BOTTOM;
     public static final int COLOR_COUNT = 4;
     public static final Color[] COLOR_VALUES = {Color.RED, Color.BLUE, Color.GREEN, Color.YELLOW};
     public static final int GROUP_SIZE = 2;
@@ -70,7 +73,7 @@ public class Main extends Application {
         scene.setOnMouseClicked(new EventHandler<MouseEvent>() {
             public void handle(MouseEvent mouseClick) {
                 int xTile = (int) (mouseClick.getX() / BLOCK_SIZE);
-                int yTile = (int) Math.floor(((mouseClick.getY() - UI_OFFSET) / BLOCK_SIZE));
+                int yTile = (int) Math.floor(((mouseClick.getY() - UI_OFFSET_TOP) / BLOCK_SIZE));
                 if (xTile >= 0 && xTile < BLOCK_COUNT_HORIZONTAL && yTile >= 0 && yTile < BLOCK_COUNT_VERTICAL) {
                     removeTiles(yTile, xTile);
                     draw(gc);
@@ -102,17 +105,25 @@ public class Main extends Application {
     
     public static void draw(GraphicsContext gc) {
         drawBoard(gc);
-        int[] colorsAmounts = countColors();
+        gc.setFill(Color.BLACK);
+        gc.fillRect(0, HEIGHT - UI_OFFSET_BOTTOM, WIDTH, UI_OFFSET_BOTTOM);
+        int[] colorAmounts = countColors();
+        for (int x = 0; x < colorAmounts.length; x++) {
+            gc.setFill(COLOR_VALUES[x]);
+            gc.setFont(new Font("Calibri", 40));
+            gc.setTextAlign(TextAlignment.CENTER);
+            gc.fillText(colorAmounts[x] + "", x * 110 + 60, HEIGHT - 5);
+        }
     }
     
     public static void drawBoard(GraphicsContext gc) {
         gc.setFill(Color.WHITE);
-        gc.fillRect(0, UI_OFFSET, BLOCK_COUNT_HORIZONTAL * BLOCK_SIZE, BLOCK_COUNT_VERTICAL * BLOCK_SIZE);
+        gc.fillRect(0, UI_OFFSET_TOP, BLOCK_COUNT_HORIZONTAL * BLOCK_SIZE, BLOCK_COUNT_VERTICAL * BLOCK_SIZE);
         for(int x = 0; x < board.length; x++) {
             for(int y = 0; y < board[x].length; y++) {
                 if (board[x][y] != 0) {
                     gc.setFill(COLOR_VALUES[board[x][y]-1]);
-                    gc.fillRect(y * BLOCK_SIZE, x * BLOCK_SIZE + UI_OFFSET, BLOCK_SIZE, BLOCK_SIZE);
+                    gc.fillRect(y * BLOCK_SIZE, x * BLOCK_SIZE + UI_OFFSET_TOP, BLOCK_SIZE, BLOCK_SIZE);
                 }
             }
         }
