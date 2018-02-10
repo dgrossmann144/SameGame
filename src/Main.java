@@ -31,7 +31,7 @@ public class Main extends Application {
      * Display number of blocks of color left
      */
     
-    public static final int BLOCK_COUNT_HORIZONTAL = 10;
+    public static final int BLOCK_COUNT_HORIZONTAL = 5;
     public static final int BLOCK_COUNT_VERTICAL = 5;
     public static final int BLOCK_SIZE = 30;
     public static final int UI_OFFSET_TOP = 90;
@@ -46,7 +46,7 @@ public class Main extends Application {
     public void start(Stage primaryStage) {
         primaryStage.setTitle("Same Game");
         
-        Board board = new Board(10, 5, 2, new Color[] {Color.RED, Color.BLUE, Color.FORESTGREEN, Color.YELLOW});
+        Board board = new Board(5, 5, 2, new Color[] {Color.RED, Color.BLUE, Color.FORESTGREEN, Color.YELLOW});
         
         Group root = new Group();
         Scene scene = new Scene(root);
@@ -94,8 +94,14 @@ public class Main extends Application {
         Button solve = new Button("Solve");
         solve.setOnAction(new EventHandler<ActionEvent>() {
             public void handle(ActionEvent event) {
-                bruteForce(board);
-                System.out.println("Done");
+                ArrayList<Point> solution = bruteForce(board);
+                if (solution != null) {
+                    for (int x = solution.size() - 1; x >= 0; x--) {
+                        System.out.println(solution.get(x));
+                    }
+                } else {
+                    System.out.println("No solution");
+                }
             }
         });
         root.getChildren().add(solve);
@@ -103,9 +109,9 @@ public class Main extends Application {
         primaryStage.show();
     }
     
-    public static void bruteForce(Board board) {
+    public static ArrayList<Point> bruteForce(Board board) {
         if (board.checkEnd() == 0) {
-//            System.out.println("Game solved");
+            return new ArrayList<Point>();
         } else {
             Object[] movesArray = board.getAllGroups().toArray();
             ArrayList<Point> moves = new ArrayList<Point>();
@@ -117,9 +123,14 @@ public class Main extends Application {
                     Board newBoard = board.cloneBoard();
                     Point p = moves.remove(x);
                     newBoard.removeGroup((int) p.getX(), (int) p.getY());
-                    bruteForce(newBoard);
+                    ArrayList<Point> result = bruteForce(newBoard);
+                    if (result != null) {
+                        result.add(p);
+                        return result;
+                    }
                 }
             }
+            return null;
         }
     }
 

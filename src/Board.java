@@ -152,7 +152,6 @@ public class Board {
         return colorCounts;
     }
     
-    // untested
     public boolean isCleared() {
         return board[0][board[0].length - 1] == 0;
     }
